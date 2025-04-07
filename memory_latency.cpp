@@ -1,5 +1,5 @@
 // OS 2025 EX1
-
+#include<cmath>
 #include "memory_latency.h"
 #include "measure.h"
 
