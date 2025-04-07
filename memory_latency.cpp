@@ -139,22 +139,10 @@ int main(int argc, char* argv[])
         double random_offset = random_result.access_time - random_result.baseline;
         double seq_offset = seq_result.access_time - seq_result.baseline;
 
-        if (random_offset < 0) {
-            fprintf(stderr, "Warning: Negative random offset (%.2f) detected at size %lu\n",
-                    random_offset, array_size_bytes);
-            random_offset = 0.01; // Set to small positive value for logging
-        }
-        if (seq_offset < 0) {
-            fprintf(stderr, "Warning: Negative sequential offset (%.2f) detected at size %lu\n",
-                    seq_offset, array_size_bytes);
-            seq_offset = 0.01; // Set to small positive value for logging
-        }
-
         printf("%lu,%.2f,%.2f\n", array_size_bytes, random_offset, seq_offset);
         free(arr);
 
         array_size_bytes = (uint64_t)ceil(array_size_bytes * factor);
-
     }
 
 
