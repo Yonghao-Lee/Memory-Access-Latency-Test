@@ -26,21 +26,17 @@ uint64_t nanosectime(struct timespec t)
 *      double access_time - the average time (ns) taken to preform the measured operation with memory access.
 *      uint64_t rnd - the variable used to randomly access the array, returned to prevent compiler optimizations.
 */
-struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero)
-{
-    repeat = arr_size > repeat ? arr_size:repeat; // Make sure repeat >= arr_size
+struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero){
+    repeat = arr_size > repeat ? arr_size : repeat; // Ensure repeat >= arr_size
 
-    // Baseline measurement:
+    // Baseline measurement (NO memory access):
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
-    register uint64_t rnd=12345;
-    register uint64_t seq=0;  // Use a separate sequential index
+    register uint64_t rnd = 12345;
     for (register uint64_t i = 0; i < repeat; i++)
     {
-        register uint64_t index = seq;  // Use seq instead of i
-        rnd ^= index & zero;
-        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
-        seq = (seq + 1) % arr_size;  // Update seq in the same way in both loops
+        rnd ^= (i % arr_size) & zero; // <-- Changed line 1: sequential indexing (baseline)
+        rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t1;
     timespec_get(&t1, TIME_UTC);
@@ -48,29 +44,27 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
     // Memory access measurement:
     struct timespec t2;
     timespec_get(&t2, TIME_UTC);
-    rnd=(rnd & zero) ^ 12345;
-    seq=0;  // Reset seq for the second measurement
+    rnd = (rnd & zero) ^ 12345;
     for (register uint64_t i = 0; i < repeat; i++)
     {
-        register uint64_t index = seq;  // Use seq instead of i
+        register uint64_t index = i % arr_size; // <-- Changed line 2: sequential indexing (memory access)
         rnd ^= arr[index] & zero;
-        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
-        seq = (seq + 1) % arr_size;  // Update seq in the same way in both loops
+        rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t3;
     timespec_get(&t3, TIME_UTC);
 
     // Calculate baseline and memory access times:
-    double baseline_per_cycle=(double)(nanosectime(t1)- nanosectime(t0))/(repeat);
-    double memory_per_cycle=(double)(nanosectime(t3)- nanosectime(t2))/(repeat);
-    struct measurement result;
+    double baseline_per_cycle = (double)(nanosectime(t1) - nanosectime(t0)) / repeat;
+    double memory_per_cycle = (double)(nanosectime(t3) - nanosectime(t2)) / repeat;
 
+    struct measurement result;
     result.baseline = baseline_per_cycle;
     result.access_time = memory_per_cycle;
     result.rnd = rnd;
+
     return result;
 }
-
 /**
  * Runs the logic of the memory_latency program. Measures the access latency for random and sequential memory access
  * patterns.
