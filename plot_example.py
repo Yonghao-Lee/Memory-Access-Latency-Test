@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Read your data
-data = pd.read_csv(r"./lscpu.csv")
+data = pd.read_csv(r"./new_measure.csv")
 data = data.to_numpy()
 
 # Set cache sizes in bytes from your lscpu output
