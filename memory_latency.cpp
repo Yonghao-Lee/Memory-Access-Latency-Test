@@ -34,7 +34,7 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
     timespec_get(&t0, TIME_UTC);
     register uint64_t rnd = 12345;
     for (register uint64_t i = 0; i < repeat; i++) {
-        register uint64_t index = i % arr_size;
+        register uint64_t index = i % arr_size;  // Changed from rnd % arr_size to i % arr_size
         rnd ^= index & zero;
         rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);
     }
@@ -46,10 +46,8 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
     timespec_get(&t2, TIME_UTC);
     rnd = (rnd & zero) ^ 12345;  // Reset rnd to make measurements more comparable
     for (register uint64_t i = 0; i < repeat; i++) {
-        register uint64_t index = i % arr_size;
-        // Add volatile to ensure memory is actually accessed
-        volatile array_element_t value = arr[index];
-        rnd ^= value & zero;
+        register uint64_t index = i % arr_size;  // Changed from rnd % arr_size to i % arr_size
+        rnd ^= arr[index] & zero;
         rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t3;
@@ -103,7 +101,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if (factor < 1.0){
+    if (factor <= 1.0){
         fprintf(stderr, "Error: factor must be greater than 1.0\n");
         return -1;
     }
@@ -127,7 +125,7 @@ int main(int argc, char* argv[])
             fprintf(stderr, "Error: Memory allocation failed\n");
             return -1;
         }
-        // Initialize the array with random values
+        // Initialize the array with sequential values
         for (uint64_t i = 0; i < elements; i++) {
             arr[i] = i + 1;
         }
@@ -144,6 +142,5 @@ int main(int argc, char* argv[])
         array_size_bytes = (uint64_t)ceil(array_size_bytes * factor);
     }
 
-
-
+    return 0;
 }
