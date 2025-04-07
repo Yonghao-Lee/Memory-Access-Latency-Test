@@ -30,8 +30,6 @@ plt.axvline(x=l1_size, label="L1d (32 KiB)", c='r')
 plt.axvline(x=l2_size, label="L2 (256 KiB)", c='g')
 plt.axvline(x=l3_size, label="L3 (6 MiB)", c='brown')
 
-# Add page table eviction threshold for bonus
-plt.axvline(x=threshold, label="Page Table Eviction Threshold", c='magenta')
 
 plt.legend()
 plt.title("Latency as a function of array size on Intel Core i5-6600")
