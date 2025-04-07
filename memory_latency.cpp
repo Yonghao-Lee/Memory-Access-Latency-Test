@@ -27,41 +27,40 @@ uint64_t nanosectime(struct timespec t)
 *      uint64_t rnd - the variable used to randomly access the array, returned to prevent compiler optimizations.
 */
 struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero){
-    repeat = arr_size > repeat ? arr_size:repeat; // Make sure repeat >= arr_size
+    repeat = arr_size > repeat ? arr_size : repeat;
 
-    // Baseline measurement:
+    // Baseline measurement
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
-    register uint64_t rnd=12345;
-    for (register uint64_t i = 0; i < repeat; i++)
-    {
-        register uint64_t index = i % arr_size;  // Sequential access pattern
+    register uint64_t rnd = 12345;
+    for (register uint64_t i = 0; i < repeat; i++) {
+        register uint64_t index = i % arr_size;
         rnd ^= index & zero;
-        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
+        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t1;
     timespec_get(&t1, TIME_UTC);
 
-    // Memory access measurement:
+    // Memory access measurement
     struct timespec t2;
     timespec_get(&t2, TIME_UTC);
-    rnd=(rnd & zero) ^ 12345;
-    for (register uint64_t i = 0; i < repeat; i++)
-    {
-        register uint64_t index = i % arr_size;  // Same sequential access pattern
-        rnd ^= arr[index] & zero;  // The only difference is reading from memory here
-        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Same LFSR update
+    rnd = (rnd & zero) ^ 12345;  // Reset rnd to make measurements more comparable
+    for (register uint64_t i = 0; i < repeat; i++) {
+        register uint64_t index = i % arr_size;
+        // Add volatile to ensure memory is actually accessed
+        volatile array_element_t value = arr[index];
+        rnd ^= value & zero;
+        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t3;
     timespec_get(&t3, TIME_UTC);
 
-    // Calculate baseline and memory access times:
-    double baseline_per_cycle=(double)(nanosectime(t1)- nanosectime(t0))/(repeat);
-    double memory_per_cycle=(double)(nanosectime(t3)- nanosectime(t2))/(repeat);
-    struct measurement result;
+    double baseline = (double)(nanosectime(t1) - nanosectime(t0)) / repeat;
+    double access_time = (double)(nanosectime(t3) - nanosectime(t2)) / repeat;
 
-    result.baseline = baseline_per_cycle;
-    result.access_time = memory_per_cycle;
+    struct measurement result;
+    result.baseline = baseline;
+    result.access_time = access_time;
     result.rnd = rnd;
     return result;
 }
