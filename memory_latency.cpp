@@ -1,5 +1,5 @@
 // OS 2025 EX1
-
+#include <cmath>
 #include "memory_latency.h"
 #include "measure.h"
 
@@ -26,36 +26,34 @@ uint64_t nanosectime(struct timespec t)
 *      double access_time - the average time (ns) taken to preform the measured operation with memory access.
 *      uint64_t rnd - the variable used to randomly access the array, returned to prevent compiler optimizations.
 */
-struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero)
-{
-    // if too few repetition, we change repeat
-    repeat = repeat < arr_size ? arr_size : repeat;
+struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero){
+    repeat = arr_size > repeat ? arr_size:repeat; // Make sure repeat >= arr_size
 
-    // record the starting time
+    // Baseline measurement:
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
-    register uint64_t rnd = 12345;  // Initialize with a starting value
-
-    for (register uint64_t i = 0; i < repeat; i++){
-        register uint64_t index = i % arr_size;  // Sequential access pattern
-        rnd ^= index & zero;
-        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);
-    }
-    struct timespec t1;
-    timespec_get(&t1, TIME_UTC);  // Record end time for baseline
-
-    struct timespec t2;
-    timespec_get(&t2, TIME_UTC);  // Record start time
-    rnd = (rnd & zero) ^ 12345;
+    register uint64_t rnd=12345;
     for (register uint64_t i = 0; i < repeat; i++)
     {
-        register uint64_t index = i % arr_size;
-        rnd ^= arr[index] & zero;
+        register uint64_t index = i % arr_size;  // Sequential access pattern
+        rnd ^= index & zero;
         rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
     }
+    struct timespec t1;
+    timespec_get(&t1, TIME_UTC);
 
+    // Memory access measurement:
+    struct timespec t2;
+    timespec_get(&t2, TIME_UTC);
+    rnd=(rnd & zero) ^ 12345;
+    for (register uint64_t i = 0; i < repeat; i++)
+    {
+        register uint64_t index = i % arr_size;  // Same sequential access pattern
+        rnd ^= arr[index] & zero;  // The only difference is reading from memory here
+        rnd = (rnd >> 1) ^ ((0-(rnd & 1)) & GALOIS_POLYNOMIAL);  // Same LFSR update
+    }
     struct timespec t3;
-    timespec_get(&t3, TIME_UTC);  // Record end time for memory access
+    timespec_get(&t3, TIME_UTC);
 
     // Calculate baseline and memory access times:
     double baseline_per_cycle=(double)(nanosectime(t1)- nanosectime(t0))/(repeat);
@@ -64,7 +62,7 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
 
     result.baseline = baseline_per_cycle;
     result.access_time = memory_per_cycle;
-    result.rnd = rnd;  // Return rnd to prevent compiler optimizations
+    result.rnd = rnd;
     return result;
 }
 
@@ -141,11 +139,21 @@ int main(int argc, char* argv[])
         double random_offset = random_result.access_time - random_result.baseline;
         double seq_offset = seq_result.access_time - seq_result.baseline;
 
-        printf("%lu,%.2f,%.2f\n", array_size_bytes, random_offset, seq_offset);
+        if (random_offset < 0) {
+            fprintf(stderr, "Warning: Negative random offset (%.2f) detected at size %lu\n",
+                    random_offset, array_size_bytes);
+            random_offset = 0.01; // Set to small positive value for logging
+        }
+        if (seq_offset < 0) {
+            fprintf(stderr, "Warning: Negative sequential offset (%.2f) detected at size %lu\n",
+                    seq_offset, array_size_bytes);
+            seq_offset = 0.01; // Set to small positive value for logging
+        }
 
+        printf("%lu,%.2f,%.2f\n", array_size_bytes, random_offset, seq_offset);
         free(arr);
 
-        array_size_bytes = (uint64_t)(array_size_bytes * factor);
+        array_size_bytes = (uint64_t)ceil(array_size_bytes * factor);
 
     }
 
