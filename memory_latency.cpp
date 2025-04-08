@@ -30,34 +30,34 @@ uint64_t nanosectime(struct timespec t)
 */
 struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero)
 {
-    // Your code here
     repeat = arr_size > repeat ? arr_size : repeat; // Make sure repeat >= arr_size
 
     // Baseline measurement:
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
     register uint64_t rnd = 12345;
-    for (register uint64_t i = 0; i < repeat; i++){
-      register uint64_t index = i % arr_size;
+    for (register uint64_t i = 0; i < repeat; i++) {
+        register uint64_t index = i % arr_size;
         rnd ^= index & zero;
         rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
     }
+    struct timespec t1;
+    timespec_get(&t1, TIME_UTC);
 
+    // Memory access measurement:
     struct timespec t2;
     timespec_get(&t2, TIME_UTC);
     rnd = (rnd & zero) ^ 12345;
-
-    for (register uint64_t i = 0; i < repeat; i++){
+    for (register uint64_t i = 0; i < repeat; i++) {
         register uint64_t index = i % arr_size;
         rnd ^= arr[index] & zero;
         rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);  // Advance rnd pseudo-randomly (using Galois LFSR)
     }
-
     struct timespec t3;
     timespec_get(&t3, TIME_UTC);
 
     // Calculate baseline and memory access times:
-    double baseline_per_cycle = (double)(nanosectime(t2) - nanosectime(t0)) / (repeat);
+    double baseline_per_cycle = (double)(nanosectime(t1) - nanosectime(t0)) / (repeat);
     double memory_per_cycle = (double)(nanosectime(t3) - nanosectime(t2)) / (repeat);
 
     struct measurement result;
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
         double sequential_offset = sequential_result.access_time - sequential_result.baseline;
 
         // Print results in CSV format
-        printf("%lu,%.6f,%.6f\n", size_bytes, random_offset, sequential_offset);
+        printf("%lu,%.2f,%.6f\n", size_bytes, random_offset, sequential_offset);
         free(arr);
       }
 
