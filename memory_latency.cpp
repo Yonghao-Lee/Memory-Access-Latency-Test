@@ -31,16 +31,13 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
 {
     repeat = arr_size > repeat ? arr_size : repeat; // Make sure repeat >= arr_size
 
-    // Prepare a dummy array_element_t variable to ensure equivalent operations
-    register array_element_t dummy = 0;
-
     // Baseline measurement:
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
     register uint64_t rnd = 12345;
     for (register uint64_t i = 0; i < repeat; i++) {
         register uint64_t index = i % arr_size;
-        rnd ^= (dummy + index) & zero;  // Make equivalent to memory access operation
+        rnd ^= index & zero;  // Same operation as in measure_latency
         rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);
     }
     struct timespec t1;
