@@ -1,4 +1,3 @@
-// OS 2025 EX1
 
 #ifndef _MEMORY_LATENCY_H
 #define _MEMORY_LATENCY_H

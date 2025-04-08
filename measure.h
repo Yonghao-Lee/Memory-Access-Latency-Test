@@ -1,4 +1,3 @@
-// OS 2025 EX1
 
 #ifndef MEASURE_H
 #define MEASURE_H
