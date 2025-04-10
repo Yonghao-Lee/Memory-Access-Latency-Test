@@ -1,4 +1,3 @@
-
 #include "memory_latency.h"
 #include "measure.h"
 #include <cmath>
@@ -27,18 +26,18 @@ uint64_t nanosectime(struct timespec t)
 *      double access_time - the average time (ns) taken to preform the measured operation with memory access.
 *      uint64_t rnd - the variable used to randomly access the array, returned to prevent compiler optimizations.
 */
-struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero)
-{
-    repeat = arr_size > repeat ? arr_size : repeat; // Make sure repeat >= arr_size
+struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* arr, uint64_t arr_size, uint64_t zero){
+    repeat = arr_size > repeat ? arr_size:repeat; // Make sure repeat >= arr_size
 
     // Baseline measurement:
     struct timespec t0;
     timespec_get(&t0, TIME_UTC);
-    register uint64_t rnd = 12345;
-    for (register uint64_t i = 0; i < repeat; i++) {
-        register uint64_t index = i % arr_size;
-        rnd ^= index & zero;  // Same operation as in measure_latency
-        rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);
+    register uint64_t rnd=12345;
+    for (register uint64_t i = 0; i < repeat; i++)
+    {
+        register uint64_t index = rnd % arr_size;
+        rnd ^= index & zero;
+        rnd++;
     }
     struct timespec t1;
     timespec_get(&t1, TIME_UTC);
@@ -46,25 +45,28 @@ struct measurement measure_sequential_latency(uint64_t repeat, array_element_t* 
     // Memory access measurement:
     struct timespec t2;
     timespec_get(&t2, TIME_UTC);
-    rnd = (rnd & zero) ^ 12345;
-    for (register uint64_t i = 0; i < repeat; i++) {
-        register uint64_t index = i % arr_size;
+    rnd=(rnd & zero) ^ 12345;
+    for (register uint64_t i = 0; i < repeat; i++)
+    {
+        register uint64_t index = rnd % arr_size;
         rnd ^= arr[index] & zero;
-        rnd = (rnd >> 1) ^ ((0 - (rnd & 1)) & GALOIS_POLYNOMIAL);
-    }
+        rnd++;
+        }
+
     struct timespec t3;
     timespec_get(&t3, TIME_UTC);
 
     // Calculate baseline and memory access times:
-    double baseline_per_cycle = (double)(nanosectime(t1) - nanosectime(t0)) / (repeat);
-    double memory_per_cycle = (double)(nanosectime(t3) - nanosectime(t2)) / (repeat);
-
+    double baseline_per_cycle=(double)(nanosectime(t1)- nanosectime(t0))/(repeat);
+    double memory_per_cycle=(double)(nanosectime(t3)- nanosectime(t2))/(repeat);
     struct measurement result;
+
     result.baseline = baseline_per_cycle;
     result.access_time = memory_per_cycle;
     result.rnd = rnd;
     return result;
 }
+
 /**
  * Runs the logic of the memory_latency program. Measures the access latency for random and sequential memory access
  * patterns.
@@ -111,32 +113,44 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    for (uint64_t size_bytes = 100; size_bytes <= max_size; size_bytes = (uint64_t)(size_bytes * factor)) {
-      uint64_t arr_size = size_bytes / sizeof(array_element_t);
-      arr_size = ceil(arr_size * factor);
-      if (arr_size == 0){
-        arr_size = 1;
-      }
-        array_element_t* arr = (array_element_t*)malloc(arr_size * sizeof(array_element_t));
+    // Start with an array size of 100 bytes
+    uint64_t array_size_bytes = 100;
+
+    // Loop until we reach or exceed the maximum size
+    while (array_size_bytes <= max_size) {
+        // Calculate number of elements needed for this array size
+        uint64_t array_size_elements = array_size_bytes / sizeof(array_element_t);
+        if (array_size_elements == 0) array_size_elements = 1;  // Ensure at least one element
+
+        // Allocate array
+        array_element_t* arr = (array_element_t*)malloc(array_size_elements * sizeof(array_element_t));
         if (arr == NULL) {
-            fprintf(stderr, "Error: Failed to allocate memory for array\n");
+            fprintf(stderr, "Error: Failed to allocate memory\n");
             return -1;
         }
 
-        // Initialize the array with random values
-        for (uint64_t i = 0; i < arr_size; i++) {
-            arr[i] = (i * 16807) % 2147483647;  // Using parameters from the Park-Miller random number generator
+        // Initialize array with unique values as recommended
+        for (uint64_t i = 0; i < array_size_elements; i++) {
+            arr[i] = rand();  // Park-Miller parameters for variety
         }
 
-        struct measurement random_result = measure_latency(repeat, arr, arr_size, zero);
-        struct measurement sequential_result = measure_sequential_latency(repeat, arr, arr_size, zero);
+        // Run measurements...
+        struct measurement random_result = measure_latency(repeat, arr, array_size_elements, zero);
+        struct measurement sequential_result = measure_sequential_latency(repeat, arr, array_size_elements, zero);
+
+        // Calculate offsets
         double random_offset = random_result.access_time - random_result.baseline;
         double sequential_offset = sequential_result.access_time - sequential_result.baseline;
 
-        // Print results in CSV format
-        printf("%lu,%.2f,%.6f\n", size_bytes, random_offset, sequential_offset);
+        // Print results
+        printf("%lu,%.2f,%.2f\n", array_size_bytes, random_offset, sequential_offset);
+
+        // Free the array
         free(arr);
-      }
+
+        // Calculate next array size using ceiling as specified
+        array_size_bytes = ceil(array_size_bytes * factor);
+    }
 
       return 0;
 }

@@ -1,0 +1,73 @@
+yonghao.lee
+Yonghao Lee (345906150)
+EX: 1
+FILES:
+README file -- This file
+memory_latency.cpp -- The source file of my implementation
+Makefile -- The makefile for this project
+result.png -- The plot for the performance test
+leestupid_lscpu -- part one of the output of lscpu command
+leestupid_lscpu2 -- part two of the output of the lscpu command
+page_size.png -- The screenshot of the bonus part.
+
+REMARKS:
+None
+
+ANSWERS:
+Q1:
+If the program does not receive a single argument, it prints out on standard error the line:
+"Error. The program should receive a single argument. Exiting.", and it starts a new line and writes:
+": Success\n".
+If it receives a single argument, The program makes a directory called "Welcome" with 0755 permissions.
+(Owner can w/r/e, group can w/r/e, whereas group can r/w).
+Then the program creates 3 files inside this directory:
+"Welcome/Welcome", "Welcome/To", and "Welcome/OS-2024".
+Then the program writes to the first file("Welcome/Welcome") the following:
+"{username}\nIf you haven't read " 84 bytes. Where the username is your login.
+The program subsequently writes to the second file("Welcome/To") the following:
+"Start exercises early! " 22 bytes.
+Finally, the program writes inside the third file("Welcom/OS-2024"):
+"Good luck! " 10 bytes.
+Then the program deletes all 3 files it created using the system call unlink().
+Then it removes the Welcome directory with rmdir().
+
+Q2:
+Based on the memory latency graph generated, we can observe and analyze the following:
+
+1. Random vs. Sequential Access Patterns:
+   - Random access (blue line) shows a clear step pattern corresponding to different cache levels
+   - Sequential access (orange line) maintains consistently low latency regardless of array size, demonstrating the effectiveness of hardware prefetching mechanisms
+
+2. Cache Level Transitions:
+   - L1 Cache (32 KiB): When array size exceeds L1 cache, we see the first noticeable increase in random access latency
+   - L2 Cache (256 KiB): A second increase occurs when data no longer fits entirely in L2 cache
+   - L3 Cache (9 MiB): The most dramatic increase happens when data exceeds L3 cache and must be fetched from main memory
+
+3. Latency Analysis:
+   - Small arrays (< L1 size): Both access patterns show similar, low latency (~1 ns)
+   - Medium arrays (L1 < size < L3): Random access latency increases gradually as more cache misses occur
+   - Large arrays (> L3 size): Random access latency increases significantly (10+ ns) as most accesses result in fetches from main memory
+   - Sequential access latency remains nearly constant due to effective prefetching, where the CPU predicts and loads the next cache lines before they are requested
+
+4. Hardware Optimization Impact:
+   - The results confirm the cache hierarchy's design purpose of mitigating the memory wall problem
+   - The significant difference between random and sequential access demonstrates how modern CPUs are optimized for predictable memory access patterns
+
+The measurements align with theoretical expectations of memory hierarchy performance, showing how both spatial locality (sequential access) and temporal locality (cache utilization) affect memory access latency.
+
+Bonus:
+The page table eviction threshold was calculated at approximately 2304 MiB (shown as the magenta vertical line on the graph). This threshold represents the point where the page table entries begin to be evicted from the last-level cache (L3).
+
+Between the L3 cache size (9 MiB) and the page table eviction threshold:
+- Each memory access requires a virtual-to-physical address translation via the page table
+- As long as the relevant page table entries remain in the L3 cache, this translation incurs relatively modest additional latency
+- The random access latency in this region is already high due to data being fetched from main memory
+
+After the page table eviction threshold:
+- The page table entries themselves start being evicted from L3 cache
+- Each memory access now potentially requires two main memory accesses: one to fetch the page table entry and another to fetch the actual data
+- This would theoretically cause another step increase in latency, doubling the access time in the worst case
+
+The formula used to calculate this threshold: (1/2) × (page_size/address_size) × L3 cache size = (1/2) × (4096/8) × 9 MiB ≈ 2304 MiB, matches what we expect based on the system architecture of our Intel Core i5-8500 CPU.
+
+However, in our measurements, we don't observe a dramatic step increase at exactly this threshold, suggesting that other factors like TLB (Translation Lookaside Buffer) caching and memory access patterns are also influencing the overall latency profile.
